@@ -1,6 +1,11 @@
-// Force using deployed backend in all environments
+// Pick API base from env; fall back to current origin (works with Vite proxy) or live backend
 const API_BASE_URL =
-  'https://dbms-backend-gp3i8nx6s-govinds-projects-0e1f4b5e.vercel.app/api';
+  import.meta.env.VITE_API_BASE_URL ||
+  `${window.location.origin.replace(/\/$/, '')}/api` ||
+  'https://dbms-backend-sand.vercel.app/api';
+
+// Normalize once for consistent logging
+const NORMALIZED_API_BASE = API_BASE_URL.replace(/\/$/, '');
 
 // Get auth token from localStorage
 const getAuthToken = () => {
@@ -20,17 +25,26 @@ const apiRequest = async (endpoint, options = {}) => {
     ...options,
   };
 
+  const url =
+    endpoint.startsWith('/')
+      ? `${NORMALIZED_API_BASE}${endpoint}`
+      : `${NORMALIZED_API_BASE}/${endpoint}`;
+
+  console.debug('API request start', { url, endpoint });
+
   try {
     const response = await fetch(`${API_BASE_URL}${endpoint}`, config);
     const data = await response.json();
 
     if (!response.ok) {
-      throw new Error(data.message || 'Request failed');
+      const message = data.message || `Request failed with ${response.status}`;
+      console.error('API request failed', { url, status: response.status, message });
+      throw new Error(message);
     }
 
     return data;
   } catch (error) {
-    console.error('API Error:', error);
+    console.error('API Error:', { url, endpoint, message: error.message });
     throw error;
   }
 };

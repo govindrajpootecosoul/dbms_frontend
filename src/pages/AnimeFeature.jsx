@@ -1,19 +1,104 @@
 import { motion } from 'framer-motion'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { animeAPI } from '../utils/api'
+import { useAuth } from '../context/AuthContext'
 
 const AnimeFeature = () => {
   const navigate = useNavigate()
-  const [stats] = useState({
-    totalAnime: 45,
-    completed: 23,
-    watching: 12,
-    onHold: 7,
-    dropped: 3,
-    totalEpisodes: 1250,
-    averageRating: 8.5,
-    totalHours: 520
-  })
+  const { isAuthenticated } = useAuth()
+  const [animeList, setAnimeList] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+
+  // Fetch anime data from API
+  useEffect(() => {
+    if (!isAuthenticated) {
+      navigate('/login')
+      return
+    }
+
+    const fetchAnime = async () => {
+      try {
+        setLoading(true)
+        setError('')
+        const response = await animeAPI.getAll()
+        if (response.success) {
+          // Map MongoDB _id to id for compatibility
+          const mappedData = response.data.map(item => ({
+            ...item,
+            id: item._id
+          }))
+          setAnimeList(mappedData)
+        }
+      } catch (err) {
+        setError(err.message || 'Failed to fetch anime data')
+        console.error('Fetch error:', err)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchAnime()
+  }, [isAuthenticated, navigate])
+
+  // Calculate statistics dynamically from animeList
+  const calculateStats = () => {
+    if (!animeList || animeList.length === 0) {
+      return {
+        totalAnime: 0,
+        completed: 0,
+        watching: 0,
+        onHold: 0,
+        dropped: 0,
+        watchLater: 0,
+        yetToAir: 0,
+        totalEpisodes: 0,
+        averageRating: 0,
+        totalHours: 0
+      }
+    }
+
+    const totalAnime = animeList.length
+    const completed = animeList.filter(a => a.watchStatus === 'Completed').length
+    const watching = animeList.filter(a => a.watchStatus === 'Watching').length
+    const onHold = animeList.filter(a => a.watchStatus === 'On Hold').length
+    const dropped = animeList.filter(a => a.watchStatus === 'Dropped').length
+    const watchLater = animeList.filter(a => a.watchStatus === 'Watch Later').length
+    const yetToAir = animeList.filter(a => a.watchStatus === 'Yet to Air').length
+    
+    // Calculate total episodes watched (sum of episodeOn)
+    const totalEpisodes = animeList.reduce((sum, anime) => {
+      const episodes = parseInt(anime.episodeOn || 0)
+      return sum + episodes
+    }, 0)
+
+    // Calculate average rating if available (assuming rating field exists)
+    const ratings = animeList
+      .map(a => parseFloat(a.rating || a.averageRating || 0))
+      .filter(r => r > 0)
+    const averageRating = ratings.length > 0
+      ? ratings.reduce((sum, r) => sum + r, 0) / ratings.length
+      : 0
+
+    // Estimate watch time: assume ~20 minutes per episode
+    const totalHours = Math.round((totalEpisodes * 20) / 60)
+
+    return {
+      totalAnime,
+      completed,
+      watching,
+      onHold,
+      dropped,
+      watchLater,
+      yetToAir,
+      totalEpisodes,
+      averageRating,
+      totalHours
+    }
+  }
+
+  const stats = calculateStats()
 
   const kpiCards = [
     {
@@ -46,10 +131,10 @@ const AnimeFeature = () => {
     },
     {
       title: 'Average Rating',
-      value: stats.averageRating.toFixed(1),
+      value: stats.averageRating > 0 ? stats.averageRating.toFixed(1) : 'N/A',
       icon: '⭐',
       color: 'from-yellow-500 to-orange-500',
-      subtitle: 'Out of 10'
+      subtitle: stats.averageRating > 0 ? 'Out of 10' : 'No ratings yet'
     },
     {
       title: 'Watch Time',
@@ -59,6 +144,22 @@ const AnimeFeature = () => {
       subtitle: 'Total Hours'
     }
   ]
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-slate-600 dark:text-slate-400">Loading statistics...</div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-red-600 dark:text-red-400">Error: {error}</div>
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen relative overflow-hidden">
@@ -144,7 +245,7 @@ const AnimeFeature = () => {
                 { label: 'On Hold', value: stats.onHold, total: stats.totalAnime, color: 'bg-yellow-500' },
                 { label: 'Dropped', value: stats.dropped, total: stats.totalAnime, color: 'bg-red-500' },
               ].map((item) => {
-                const percentage = (item.value / item.total) * 100
+                const percentage = stats.totalAnime > 0 ? (item.value / stats.totalAnime) * 100 : 0
                 return (
                   <div key={item.label}>
                     <div className="flex justify-between mb-2">
@@ -176,18 +277,6 @@ const AnimeFeature = () => {
               Quick Actions
             </h3>
             <div className="space-y-2">
-              <button className="w-full glass-strong px-4 py-2 rounded-lg font-semibold text-sm hover:scale-105 transition-transform duration-300 text-left flex items-center justify-between">
-                <span>Add New Anime</span>
-                <span>+</span>
-              </button>
-              <button className="w-full glass-strong px-4 py-2 rounded-xl font-semibold hover:scale-105 transition-transform duration-300 text-left flex items-center justify-between">
-                <span>Upload from File</span>
-                <span>📤</span>
-              </button>
-              <button className="w-full glass-strong px-4 py-2 rounded-xl font-semibold hover:scale-105 transition-transform duration-300 text-left flex items-center justify-between">
-                <span>View Statistics</span>
-                <span>📊</span>
-              </button>
               <button 
                 onClick={() => navigate('/anime')}
                 className="w-full glass-strong px-4 py-2 rounded-xl font-semibold hover:scale-105 transition-transform duration-300 text-left flex items-center justify-between"

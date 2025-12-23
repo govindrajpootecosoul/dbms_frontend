@@ -1,19 +1,49 @@
 import { motion } from 'framer-motion'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { movieAPI } from '../utils/api'
+import { useAuth } from '../context/AuthContext'
 
 const MoviesFeature = () => {
   const navigate = useNavigate()
-  const [stats] = useState({
-    totalContent: 128,
-    movies: 85,
-    series: 43,
-    watched: 92,
-    watching: 15,
-    planToWatch: 21,
-    totalHours: 890,
-    averageRating: 8.2
-  })
+  const { isAuthenticated } = useAuth()
+  const [content, setContent] = useState([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      fetchContent()
+    }
+  }, [isAuthenticated])
+
+  const fetchContent = async () => {
+    try {
+      setLoading(true)
+      const response = await movieAPI.getAll()
+      if (response.success) {
+        setContent(response.data)
+      }
+    } catch (err) {
+      console.error('Fetch error:', err)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Calculate stats from real data
+  const stats = {
+    totalContent: content.length,
+    movies: content.filter(item => item.type === 'Movie').length,
+    series: content.filter(item => item.type === 'Series').length,
+    kDrama: content.filter(item => item.type === 'K Drama').length,
+    watched: content.filter(item => item.status === 'Watched' || item.status === 'Completed').length,
+    watching: content.filter(item => item.status === 'Watching').length,
+    planToWatch: content.filter(item => item.status === 'Plan to Watch').length,
+    totalHours: 0, // Can be calculated if you have duration data
+    averageRating: content.length > 0 
+      ? (content.reduce((sum, item) => sum + (parseFloat(item.rating) || 0), 0) / content.length).toFixed(1)
+      : 0
+  }
 
   const kpiCards = [
     {
@@ -53,12 +83,20 @@ const MoviesFeature = () => {
     },
     {
       title: 'Avg Rating',
-      value: stats.averageRating.toFixed(1),
+      value: parseFloat(stats.averageRating).toFixed(1),
       icon: '⭐',
       color: 'from-yellow-500 to-amber-500',
       subtitle: 'Out of 10'
     }
   ]
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-slate-600 dark:text-slate-400">Loading statistics...</div>
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen relative overflow-hidden">
@@ -138,7 +176,7 @@ const MoviesFeature = () => {
                 { label: 'Watching', value: stats.watching, total: stats.totalContent, color: 'bg-cyan-500' },
                 { label: 'Plan to Watch', value: stats.planToWatch, total: stats.totalContent, color: 'bg-yellow-500' },
               ].map((item) => {
-                const percentage = (item.value / item.total) * 100
+                const percentage = stats.totalContent > 0 ? (item.value / item.total) * 100 : 0
                 return (
                   <div key={item.label}>
                     <div className="flex justify-between mb-2">
@@ -170,18 +208,6 @@ const MoviesFeature = () => {
               Quick Actions
             </h3>
             <div className="space-y-3">
-              <button className="w-full glass-strong px-4 py-2 rounded-xl font-semibold hover:scale-105 transition-transform duration-300 text-left flex items-center justify-between">
-                <span>Add New Content</span>
-                <span>+</span>
-              </button>
-              <button className="w-full glass-strong px-4 py-2 rounded-xl font-semibold hover:scale-105 transition-transform duration-300 text-left flex items-center justify-between">
-                <span>Upload from File</span>
-                <span>📤</span>
-              </button>
-              <button className="w-full glass-strong px-4 py-2 rounded-xl font-semibold hover:scale-105 transition-transform duration-300 text-left flex items-center justify-between">
-                <span>View Statistics</span>
-                <span>📊</span>
-              </button>
               <button 
                 onClick={() => navigate('/movies')}
                 className="w-full glass-strong px-4 py-2 rounded-xl font-semibold hover:scale-105 transition-transform duration-300 text-left flex items-center justify-between"

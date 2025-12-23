@@ -2,15 +2,51 @@ import { motion } from 'framer-motion'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useState } from 'react'
 import { useSidebar } from '../context/SidebarContext'
+import { useAuth } from '../context/AuthContext'
 
 const menuItems = [
-  { path: '/', icon: '🏠', label: 'Home', color: 'from-slate-500 to-gray-500' },
-  { path: '/anime/feature', icon: '🎌', label: 'Anime', color: 'from-pink-500 to-rose-500' },
-  { path: '/movies/feature', icon: '🎬', label: 'Movies', color: 'from-blue-500 to-cyan-500' },
-  { path: '/kdrama/feature', icon: '🇰🇷', label: 'K-Drama', color: 'from-purple-500 to-pink-500' },
-  { path: '/genshin/feature', icon: '⚔️', label: 'Genshin', color: 'from-amber-500 to-orange-500' },
-  { path: '/games/feature', icon: '🎮', label: 'Games', color: 'from-green-500 to-emerald-500' },
-  { path: '/credentials/feature', icon: '🔐', label: 'Credentials', color: 'from-indigo-500 to-blue-500' },
+  { 
+    path: '/', 
+    icon: '🏠', 
+    label: 'Home', 
+    color: 'from-slate-500 to-gray-500' 
+  },
+  { 
+    path: '/anime/feature', 
+    icon: '🎌', 
+    label: 'Anime', 
+    color: 'from-pink-500 to-rose-500' 
+  },
+  { 
+    path: '/movies/feature', 
+    icon: '🎬', 
+    label: 'Movies', 
+    color: 'from-blue-500 to-cyan-500' 
+  },
+  { 
+    path: '/genshin/feature', 
+    icon: '⚔️', 
+    label: 'Genshin', 
+    color: 'from-amber-500 to-orange-500' 
+  },
+  { 
+    path: '/games/feature', 
+    icon: '🎮', 
+    label: 'Games', 
+    color: 'from-green-500 to-emerald-500' 
+  },
+  { 
+    path: '/credentials/feature', 
+    icon: '🔐', 
+    label: 'Credentials', 
+    color: 'from-indigo-500 to-blue-500' 
+  },
+  { 
+    path: '/websites', 
+    icon: '🌐', 
+    label: 'Websites', 
+    color: 'from-teal-500 to-emerald-500' 
+  },
 ]
 
 const Sidebar = () => {
@@ -18,9 +54,15 @@ const Sidebar = () => {
   const location = useLocation()
   const [hoveredIndex, setHoveredIndex] = useState(null)
   const { isCollapsed, toggleSidebar } = useSidebar()
+  const { user, logout, isAuthenticated } = useAuth()
 
   const handleItemClick = (path) => {
     navigate(path)
+  }
+
+  const handleLogout = () => {
+    logout()
+    navigate('/login')
   }
 
   return (
@@ -54,7 +96,11 @@ const Sidebar = () => {
         {/* Menu Items */}
         <nav className="flex-1 flex flex-col gap-1 px-2">
           {menuItems.map((item, index) => {
-            const isActive = location.pathname === item.path
+            // Check if current path matches the menu item path or is a sub-path
+            // For feature pages, also check if we're on the main page (e.g., /anime should highlight /anime/feature)
+            const isActive = location.pathname === item.path || 
+              (item.path !== '/' && location.pathname.startsWith(item.path)) ||
+              (item.path.includes('/feature') && location.pathname === item.path.replace('/feature', ''))
 
             return (
               <motion.div
@@ -126,28 +172,96 @@ const Sidebar = () => {
           })}
         </nav>
 
-        {/* Bottom Section */}
-        <div className="px-2 pt-2 border-t border-white/10">
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.5 }}
-            className="glass-strong rounded-lg p-2 text-center"
-          >
+        {/* Bottom Section - User Info & Logout */}
+        {isAuthenticated && (
+          <div className="px-2 pt-2 border-t border-white/10 space-y-2">
+            {/* User Info */}
             <motion.div
-              animate={{ 
-                opacity: isCollapsed ? 0 : 1,
-                height: isCollapsed ? 0 : 'auto'
-              }}
-              className="overflow-hidden"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.5 }}
+              className="glass-strong rounded-lg p-2"
             >
-              <div className="text-lg mb-1">✨</div>
-              <div className="text-[10px] text-slate-600 dark:text-slate-400 font-medium">
-                Personal Portal
-              </div>
+              <motion.div
+                animate={{ 
+                  opacity: isCollapsed ? 0 : 1,
+                  height: isCollapsed ? 0 : 'auto'
+                }}
+                className="overflow-hidden flex items-center gap-2"
+              >
+                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-500 flex items-center justify-center text-white text-xs font-bold flex-shrink-0">
+                  {(user?.username || user?.email || 'U').charAt(0).toUpperCase()}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="text-xs font-medium text-slate-700 dark:text-slate-300 truncate">
+                    {user?.username || user?.email || 'User'}
+                  </div>
+                </div>
+              </motion.div>
             </motion.div>
-          </motion.div>
-        </div>
+
+            {/* Logout Button */}
+            <motion.button
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.6 }}
+              onClick={handleLogout}
+              className="w-full glass-strong rounded-lg p-2 flex items-center gap-2 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors group"
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+            >
+              <motion.div
+                animate={{ 
+                  opacity: isCollapsed ? 0 : 1,
+                  width: isCollapsed ? 0 : 'auto'
+                }}
+                className="overflow-hidden flex items-center gap-2 flex-1"
+              >
+                <svg
+                  className="w-4 h-4 text-red-600 dark:text-red-400 flex-shrink-0"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
+                  />
+                </svg>
+                <span className="text-xs font-medium text-red-600 dark:text-red-400 whitespace-nowrap">
+                  {isCollapsed ? '' : 'Logout'}
+                </span>
+              </motion.div>
+            </motion.button>
+          </div>
+        )}
+
+        {/* Personal Portal Badge (if not authenticated or as fallback) */}
+        {!isAuthenticated && (
+          <div className="px-2 pt-2 border-t border-white/10">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.5 }}
+              className="glass-strong rounded-lg p-2 text-center"
+            >
+              <motion.div
+                animate={{ 
+                  opacity: isCollapsed ? 0 : 1,
+                  height: isCollapsed ? 0 : 'auto'
+                }}
+                className="overflow-hidden"
+              >
+                <div className="text-lg mb-1">✨</div>
+                <div className="text-[10px] text-slate-600 dark:text-slate-400 font-medium">
+                  Personal Portal
+                </div>
+              </motion.div>
+            </motion.div>
+          </div>
+        )}
       </div>
     </motion.aside>
   )

@@ -1,18 +1,47 @@
 import { motion } from 'framer-motion'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { gameAPI } from '../utils/api'
+import { useAuth } from '../context/AuthContext'
 
 const GamesFeature = () => {
   const navigate = useNavigate()
-  const [stats] = useState({
-    totalGames: 156,
-    playing: 12,
-    completed: 89,
-    onHold: 32,
-    planToPlay: 23,
-    totalHours: 2450,
-    averageRating: 8.4
-  })
+  const { isAuthenticated } = useAuth()
+  const [games, setGames] = useState([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      fetchGames()
+    }
+  }, [isAuthenticated])
+
+  const fetchGames = async () => {
+    try {
+      setLoading(true)
+      const response = await gameAPI.getAll()
+      if (response.success) {
+        setGames(response.data)
+      }
+    } catch (err) {
+      console.error('Fetch error:', err)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Calculate stats from real data
+  const stats = {
+    totalGames: games.length,
+    playing: games.filter(g => g.status === 'Playing').length,
+    completed: games.filter(g => g.status === 'Completed').length,
+    onHold: games.filter(g => g.status === 'On Hold').length,
+    planToPlay: games.filter(g => g.status === 'Plan to Play').length,
+    totalHours: games.reduce((sum, g) => sum + (parseInt(g.hoursPlayed) || 0), 0),
+    averageRating: games.length > 0 
+      ? (games.reduce((sum, g) => sum + (parseFloat(g.rating) || 0), 0) / games.length).toFixed(1)
+      : 0
+  }
 
   const kpiCards = [
     {
@@ -52,12 +81,20 @@ const GamesFeature = () => {
     },
     {
       title: 'Avg Rating',
-      value: stats.averageRating.toFixed(1),
+      value: parseFloat(stats.averageRating).toFixed(1),
       icon: '⭐',
       color: 'from-indigo-500 to-blue-500',
       subtitle: 'Out of 10'
     }
   ]
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-slate-600 dark:text-slate-400">Loading statistics...</div>
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen relative overflow-hidden">
@@ -137,7 +174,7 @@ const GamesFeature = () => {
                 { label: 'On Hold', value: stats.onHold, total: stats.totalGames, color: 'bg-yellow-500' },
                 { label: 'Plan to Play', value: stats.planToPlay, total: stats.totalGames, color: 'bg-purple-500' },
               ].map((item) => {
-                const percentage = (item.value / item.total) * 100
+                const percentage = stats.totalGames > 0 ? (item.value / item.total) * 100 : 0
                 return (
                   <div key={item.label}>
                     <div className="flex justify-between mb-2">
@@ -169,18 +206,6 @@ const GamesFeature = () => {
               Quick Actions
             </h3>
             <div className="space-y-3">
-              <button className="w-full glass-strong px-4 py-2 rounded-xl font-semibold hover:scale-105 transition-transform duration-300 text-left flex items-center justify-between">
-                <span>Add New Game</span>
-                <span>+</span>
-              </button>
-              <button className="w-full glass-strong px-4 py-2 rounded-xl font-semibold hover:scale-105 transition-transform duration-300 text-left flex items-center justify-between">
-                <span>Upload from File</span>
-                <span>📤</span>
-              </button>
-              <button className="w-full glass-strong px-4 py-2 rounded-xl font-semibold hover:scale-105 transition-transform duration-300 text-left flex items-center justify-between">
-                <span>View Statistics</span>
-                <span>📊</span>
-              </button>
               <button 
                 onClick={() => navigate('/games')}
                 className="w-full glass-strong px-4 py-2 rounded-xl font-semibold hover:scale-105 transition-transform duration-300 text-left flex items-center justify-between"

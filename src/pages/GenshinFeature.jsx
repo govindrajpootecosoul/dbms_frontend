@@ -1,18 +1,98 @@
 import { motion } from 'framer-motion'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { genshinAPI } from '../utils/api'
+import { useAuth } from '../context/AuthContext'
 
 const GenshinFeature = () => {
   const navigate = useNavigate()
-  const [stats] = useState({
-    totalCharacters: 45,
-    fiveStar: 12,
-    fourStar: 33,
-    maxLevel: 8,
-    adventureRank: 58,
-    totalConstellations: 24,
-    favoriteElement: 'Electro'
-  })
+  const { isAuthenticated } = useAuth()
+  const [characters, setCharacters] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+
+  // Fetch characters data from API
+  useEffect(() => {
+    if (!isAuthenticated) {
+      navigate('/login')
+      return
+    }
+
+    const fetchCharacters = async () => {
+      try {
+        setLoading(true)
+        setError('')
+        const response = await genshinAPI.getAll()
+        if (response.success) {
+          // Map MongoDB _id to id for compatibility
+          const mappedData = response.data.map(item => ({
+            ...item,
+            id: item._id
+          }))
+          setCharacters(mappedData)
+        }
+      } catch (err) {
+        setError(err.message || 'Failed to fetch characters data')
+        console.error('Fetch error:', err)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchCharacters()
+  }, [isAuthenticated, navigate])
+
+  // Calculate statistics dynamically from characters
+  const calculateStats = () => {
+    if (!characters || characters.length === 0) {
+      return {
+        totalCharacters: 0,
+        fiveStar: 0,
+        fourStar: 0,
+        maxLevel: 0,
+        adventureRank: 0,
+        totalConstellations: 0,
+        favoriteElement: 'N/A'
+      }
+    }
+
+    const totalCharacters = characters.length
+    const fiveStar = characters.filter(c => c.rarity === 5).length
+    const fourStar = characters.filter(c => c.rarity === 4).length
+    
+    // Get max level from all characters
+    const maxLevel = Math.max(...characters.map(c => c.characterLevel || 0), 0)
+    
+    // Get highest adventure rank (assuming it's stored per character or use max)
+    const adventureRank = Math.max(...characters.map(c => c.adventureRank || 0), 0)
+    
+    // Calculate total constellations
+    const totalConstellations = characters.reduce((sum, char) => {
+      return sum + (parseInt(char.constellation) || 0)
+    }, 0)
+
+    // Find most common element
+    const elementCounts = {}
+    characters.forEach(char => {
+      const element = char.element || 'Unknown'
+      elementCounts[element] = (elementCounts[element] || 0) + 1
+    })
+    const favoriteElement = Object.keys(elementCounts).reduce((a, b) => 
+      elementCounts[a] > elementCounts[b] ? a : b, 'N/A'
+    )
+
+    return {
+      totalCharacters,
+      fiveStar,
+      fourStar,
+      maxLevel,
+      adventureRank,
+      totalConstellations,
+      favoriteElement
+    }
+  }
+
+  const stats = calculateStats()
 
   const kpiCards = [
     {
@@ -58,6 +138,22 @@ const GenshinFeature = () => {
       subtitle: 'Total Unlocked'
     }
   ]
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-slate-600 dark:text-slate-400">Loading statistics...</div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-red-600 dark:text-red-400">Error: {error}</div>
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen relative overflow-hidden">
@@ -135,7 +231,7 @@ const GenshinFeature = () => {
                 { label: '5★ Characters', value: stats.fiveStar, total: stats.totalCharacters, color: 'bg-yellow-500' },
                 { label: '4★ Characters', value: stats.fourStar, total: stats.totalCharacters, color: 'bg-purple-500' },
               ].map((item) => {
-                const percentage = (item.value / item.total) * 100
+                const percentage = stats.totalCharacters > 0 ? (item.value / stats.totalCharacters) * 100 : 0
                 return (
                   <div key={item.label}>
                     <div className="flex justify-between mb-2">
@@ -167,18 +263,6 @@ const GenshinFeature = () => {
               Quick Actions
             </h3>
             <div className="space-y-3">
-              <button className="w-full glass-strong px-4 py-2 rounded-xl font-semibold hover:scale-105 transition-transform duration-300 text-left flex items-center justify-between">
-                <span>Add Character</span>
-                <span>+</span>
-              </button>
-              <button className="w-full glass-strong px-4 py-2 rounded-xl font-semibold hover:scale-105 transition-transform duration-300 text-left flex items-center justify-between">
-                <span>Upload from File</span>
-                <span>📤</span>
-              </button>
-              <button className="w-full glass-strong px-4 py-2 rounded-xl font-semibold hover:scale-105 transition-transform duration-300 text-left flex items-center justify-between">
-                <span>View Builds</span>
-                <span>⚔️</span>
-              </button>
               <button 
                 onClick={() => navigate('/genshin')}
                 className="w-full glass-strong px-4 py-2 rounded-xl font-semibold hover:scale-105 transition-transform duration-300 text-left flex items-center justify-between"

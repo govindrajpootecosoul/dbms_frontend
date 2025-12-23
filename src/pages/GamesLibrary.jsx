@@ -1,25 +1,138 @@
 import { motion } from 'framer-motion'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import UploadButton from '../components/UploadButton'
+import { gameAPI } from '../utils/api'
+import { useAuth } from '../context/AuthContext'
+import { useNavigate } from 'react-router-dom'
 
 const GamesLibrary = () => {
-  const [games, setGames] = useState([
-    { id: 1, title: 'The Legend of Zelda: Tears of the Kingdom', platform: 'Nintendo Switch', status: 'Completed', rating: 10, image: '🗡️' },
-    { id: 2, title: 'Baldur\'s Gate 3', platform: 'PC', status: 'Playing', rating: 10, image: '🎲' },
-    { id: 3, title: 'Elden Ring', platform: 'PlayStation 5', status: 'Completed', rating: 9, image: '⚔️' },
-    { id: 4, title: 'Cyberpunk 2077', platform: 'PC', status: 'Playing', rating: 8, image: '🤖' },
-  ])
+  const { isAuthenticated } = useAuth()
+  const navigate = useNavigate()
+  const [games, setGames] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+  const [showEditModal, setShowEditModal] = useState(false)
+  const [editingGame, setEditingGame] = useState(null)
+  const [newGame, setNewGame] = useState({
+    title: '',
+    platform: 'PC',
+    status: 'Plan to Play',
+    rating: 0,
+    image: '🎮'
+  })
 
-  const handleUpload = (data) => {
-    const newGames = data.map((item, index) => ({
-      id: games.length + index + 1,
-      title: item.title || item.name || item['Title'] || `Game ${index + 1}`,
-      platform: item.platform || item['Platform'] || 'PC',
-      status: item.status || item['Status'] || 'Plan to Play',
-      rating: parseInt(item.rating || item['Rating'] || item.score || 0),
-      image: item.image || item['Image'] || '🎮'
-    }))
-    setGames([...games, ...newGames])
+  useEffect(() => {
+    if (!isAuthenticated) {
+      navigate('/login')
+      return
+    }
+    fetchGames()
+  }, [isAuthenticated, navigate])
+
+  const fetchGames = async () => {
+    try {
+      setLoading(true)
+      setError('')
+      const response = await gameAPI.getAll()
+      if (response.success) {
+        const mappedData = response.data.map(item => ({
+          ...item,
+          id: item._id
+        }))
+        // Sort alphabetically by title
+        const sortedData = mappedData.sort((a, b) => {
+          const titleA = (a.title || '').toLowerCase()
+          const titleB = (b.title || '').toLowerCase()
+          return titleA.localeCompare(titleB)
+        })
+        setGames(sortedData)
+      }
+    } catch (err) {
+      setError(err.message || 'Failed to fetch games data')
+      console.error('Fetch error:', err)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleUpload = async (data) => {
+    try {
+      setError('')
+      setLoading(true)
+      const newGames = data.map((item) => ({
+        title: item.title || item.name || item['Title'] || `Game`,
+        platform: item.platform || item['Platform'] || 'PC',
+        status: item.status || item['Status'] || 'Plan to Play',
+        rating: parseInt(item.rating || item['Rating'] || item.score || 0),
+        image: item.image || item['Image'] || '🎮'
+      }))
+      
+      // Create all games via API
+      for (const gameData of newGames) {
+        await gameAPI.create(gameData)
+      }
+      
+      // Refresh the list
+      await fetchGames()
+    } catch (err) {
+      setError(err.message || 'Failed to upload games data')
+      console.error('Upload error:', err)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleEditGame = (game) => {
+    setEditingGame(game)
+    setNewGame({
+      title: game.title || '',
+      platform: game.platform || 'PC',
+      status: game.status || 'Plan to Play',
+      rating: game.rating || 0,
+      image: game.image || '🎮'
+    })
+    setShowEditModal(true)
+  }
+
+  const handleUpdateGame = async (e) => {
+    e.preventDefault()
+    if (!editingGame || !newGame.title) return
+    
+    try {
+      setError('')
+      await gameAPI.update(editingGame.id, newGame)
+      
+      // Refresh the list
+      await fetchGames()
+      
+      setShowEditModal(false)
+      setEditingGame(null)
+      setNewGame({
+        title: '',
+        platform: 'PC',
+        status: 'Plan to Play',
+        rating: 0,
+        image: '🎮'
+      })
+    } catch (err) {
+      setError(err.message || 'Failed to update game')
+      console.error('Update error:', err)
+    }
+  }
+
+  const handleDeleteGame = async (id) => {
+    if (!window.confirm('Are you sure you want to delete this game?')) return
+    
+    try {
+      setError('')
+      await gameAPI.delete(id)
+      
+      // Refresh the list
+      await fetchGames()
+    } catch (err) {
+      setError(err.message || 'Failed to delete game')
+      console.error('Delete error:', err)
+    }
   }
 
   const statusColors = {
@@ -36,8 +149,21 @@ const GamesLibrary = () => {
     'Xbox': 'from-green-500 to-emerald-500',
   }
 
+  if (loading && games.length === 0) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-slate-600 dark:text-slate-400">Loading games...</div>
+      </div>
+    )
+  }
+
   return (
     <div className="max-w-7xl mx-auto">
+      {error && (
+        <div className="mb-4 p-3 bg-red-100 dark:bg-red-900/20 text-red-600 dark:text-red-400 rounded-lg">
+          {error}
+        </div>
+      )}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -96,8 +222,25 @@ const GamesLibrary = () => {
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ delay: index * 0.1 }}
-            className="glass-card group hover:scale-105 transition-transform duration-300"
+            className="glass-card group hover:scale-105 transition-transform duration-300 relative"
           >
+            {/* Edit and Delete Icons */}
+            <div className="absolute top-2 right-2 flex gap-2 z-10">
+              <button
+                onClick={() => handleEditGame(game)}
+                className="p-2 rounded-lg bg-blue-500/20 hover:bg-blue-500/30 text-blue-600 dark:text-blue-400 transition-all duration-300 hover:scale-110"
+                title="Edit"
+              >
+                ✏️
+              </button>
+              <button
+                onClick={() => handleDeleteGame(game.id)}
+                className="p-2 rounded-lg bg-red-500/20 hover:bg-red-500/30 text-red-600 dark:text-red-400 transition-all duration-300 hover:scale-110"
+                title="Delete"
+              >
+                🗑️
+              </button>
+            </div>
             <div className={`w-full h-32 rounded-xl bg-gradient-to-br ${platformColors[game.platform] || 'from-gray-500 to-gray-600'} flex items-center justify-center text-6xl mb-4`}>
               {game.image}
             </div>
@@ -126,6 +269,92 @@ const GamesLibrary = () => {
           </motion.div>
         ))}
       </div>
+
+      {/* Edit Game Modal */}
+      {showEditModal && editingGame && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => { setShowEditModal(false); setEditingGame(null) }} />
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95, y: 10 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            className="relative glass-card w-full max-w-2xl p-6 z-10"
+          >
+            <div className="flex items-start justify-between mb-4">
+              <div>
+                <h3 className="text-2xl font-bold text-slate-800 dark:text-slate-200">Edit Game</h3>
+                <p className="text-sm text-slate-600 dark:text-slate-400">Update the details and save.</p>
+              </div>
+              <button
+                onClick={() => { setShowEditModal(false); setEditingGame(null) }}
+                className="text-slate-500 hover:text-slate-700 dark:text-slate-300 dark:hover:text-white"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleUpdateGame} className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <input
+                required
+                name="title"
+                value={newGame.title}
+                onChange={(e) => setNewGame({ ...newGame, title: e.target.value })}
+                placeholder="Game title*"
+                className="px-3 py-2 rounded-lg bg-white/70 dark:bg-black/20 border border-white/30 dark:border-white/10 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-green-400"
+              />
+              <select
+                value={newGame.platform}
+                onChange={(e) => setNewGame({ ...newGame, platform: e.target.value })}
+                className="px-3 py-2 rounded-lg bg-white/70 dark:bg-black/20 border border-white/30 dark:border-white/10 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-green-400"
+              >
+                {Object.keys(platformColors).map((p) => (
+                  <option key={p} value={p}>{p}</option>
+                ))}
+              </select>
+              <select
+                value={newGame.status}
+                onChange={(e) => setNewGame({ ...newGame, status: e.target.value })}
+                className="px-3 py-2 rounded-lg bg-white/70 dark:bg-black/20 border border-white/30 dark:border-white/10 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-green-400"
+              >
+                {Object.keys(statusColors).map((s) => (
+                  <option key={s} value={s}>{s}</option>
+                ))}
+              </select>
+              <input
+                name="rating"
+                type="number"
+                min="0"
+                max="10"
+                value={newGame.rating}
+                onChange={(e) => setNewGame({ ...newGame, rating: parseInt(e.target.value) || 0 })}
+                placeholder="Rating (0-10)"
+                className="px-3 py-2 rounded-lg bg-white/70 dark:bg-black/20 border border-white/30 dark:border-white/10 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-green-400"
+              />
+              <input
+                name="image"
+                value={newGame.image}
+                onChange={(e) => setNewGame({ ...newGame, image: e.target.value || '🎮' })}
+                placeholder="Image URL or Emoji"
+                className="px-3 py-2 rounded-lg bg-white/70 dark:bg-black/20 border border-white/30 dark:border-white/10 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-green-400 md:col-span-2"
+              />
+              <div className="md:col-span-2 flex justify-end gap-2 mt-2">
+                <button
+                  type="button"
+                  onClick={() => { setShowEditModal(false); setEditingGame(null) }}
+                  className="px-4 py-2 rounded-lg bg-white/20 dark:bg-black/20 text-slate-700 dark:text-slate-200 font-semibold hover:bg-white/30 dark:hover:bg-black/30 transition-all duration-300"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 rounded-lg bg-gradient-to-r from-green-500 to-emerald-500 text-white font-semibold hover:from-green-600 hover:to-emerald-600 transition-all duration-300 glow-on-hover"
+                >
+                  Update
+                </button>
+              </div>
+            </form>
+          </motion.div>
+        </div>
+      )}
     </div>
   )
 }

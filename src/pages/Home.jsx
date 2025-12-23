@@ -25,6 +25,7 @@ const Home = () => {
           { icon: '⚔️', title: 'Genshin Impact', desc: 'Character builds and progress', color: 'from-amber-500 to-orange-500' },
           { icon: '🎮', title: 'Games Library', desc: 'Your gaming collection', color: 'from-green-500 to-emerald-500' },
           { icon: '🔐', title: 'Credentials', desc: 'Secure credential manager', color: 'from-indigo-500 to-blue-500' },
+          { icon: '🌐', title: 'Websites', desc: 'Store useful sites with links', color: 'from-teal-500 to-emerald-500' },
         ].map((item, index) => (
           <motion.div
             key={item.title}

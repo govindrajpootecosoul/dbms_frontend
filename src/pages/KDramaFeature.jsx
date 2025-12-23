@@ -1,18 +1,62 @@
 import { motion } from 'framer-motion'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { kdramaAPI } from '../utils/api'
+import { useAuth } from '../context/AuthContext'
 
 const KDramaFeature = () => {
   const navigate = useNavigate()
-  const [stats] = useState({
-    totalDramas: 38,
-    completed: 24,
-    watching: 8,
-    planToWatch: 6,
-    totalEpisodes: 456,
-    averageRating: 8.8,
-    favoriteGenre: 'Romance'
-  })
+  const { isAuthenticated } = useAuth()
+  const [dramas, setDramas] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [activeTab, setActiveTab] = useState('All')
+  
+  useEffect(() => {
+    if (isAuthenticated) {
+      fetchDramas()
+    }
+  }, [isAuthenticated])
+
+  const fetchDramas = async () => {
+    try {
+      setLoading(true)
+      const response = await kdramaAPI.getAll()
+      if (response.success) {
+        setDramas(response.data)
+      }
+    } catch (err) {
+      console.error('Fetch error:', err)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Filter dramas based on active tab
+  const filteredDramas = activeTab === 'All' 
+    ? dramas 
+    : activeTab === 'Watching'
+    ? dramas.filter(drama => drama.status === 'Watching')
+    : activeTab === 'Completed'
+    ? dramas.filter(drama => drama.status === 'Completed')
+    : activeTab === 'Plan to Watch'
+    ? dramas.filter(drama => drama.status === 'Plan to Watch')
+    : activeTab === 'On Hold'
+    ? dramas.filter(drama => drama.status === 'On Hold')
+    : dramas
+
+  // Calculate stats from real data
+  const stats = {
+    totalDramas: dramas.length,
+    completed: dramas.filter(d => d.status === 'Completed').length,
+    watching: dramas.filter(d => d.status === 'Watching').length,
+    planToWatch: dramas.filter(d => d.status === 'Plan to Watch').length,
+    onHold: dramas.filter(d => d.status === 'On Hold').length,
+    totalEpisodes: dramas.reduce((sum, d) => sum + (d.episodes || 0), 0),
+    averageRating: dramas.length > 0 
+      ? (dramas.reduce((sum, d) => sum + (d.rating || 0), 0) / dramas.length).toFixed(1)
+      : 0,
+    favoriteGenre: 'Romance' // Can be calculated if you add genre field
+  }
 
   const kpiCards = [
     {
@@ -45,7 +89,7 @@ const KDramaFeature = () => {
     },
     {
       title: 'Average Rating',
-      value: stats.averageRating.toFixed(1),
+      value: parseFloat(stats.averageRating).toFixed(1),
       icon: '⭐',
       color: 'from-yellow-500 to-orange-500',
       subtitle: 'Out of 10'
@@ -74,11 +118,8 @@ const KDramaFeature = () => {
           className="text-center mb-4"
         >
           <h1 className="text-4xl md:text-5xl font-bold mb-3 text-gradient">
-            K-DRAMA HEAVEN
+            K-Drama Collection
           </h1>
-          <p className="text-4xl md:text-5xl text-slate-600 dark:text-slate-300 mb-4">
-            Explore, Watch, and Enjoy Korean Dramas
-          </p>
           <motion.button
             onClick={() => navigate('/kdrama')}
             className="glass-strong px-6 py-2 rounded-xl font-semibold text-lg hover:scale-105 transition-transform duration-300"
@@ -86,6 +127,26 @@ const KDramaFeature = () => {
             View Collection →
           </motion.button>
         </motion.div>
+
+        {/* Filter Tabs */}
+        <div className="flex gap-4 mb-4 overflow-x-auto pb-2 justify-center">
+          {['All', 'Watching', 'Completed', 'Plan to Watch', 'On Hold'].map((filter, index) => (
+            <motion.button
+              key={filter}
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: index * 0.05 }}
+              onClick={() => setActiveTab(filter)}
+              className={`px-6 py-2 rounded-full whitespace-nowrap hover:scale-105 transition-all duration-300 ${
+                activeTab === filter
+                  ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow-lg'
+                  : 'glass-strong hover:bg-white/20 dark:hover:bg-black/20'
+              }`}
+            >
+              {filter}
+            </motion.button>
+          ))}
+        </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 mb-3">
           {kpiCards.map((card, index) => (
@@ -132,11 +193,12 @@ const KDramaFeature = () => {
             </h3>
             <div className="space-y-4">
               {[
-                { label: 'Completed', value: stats.completed, total: stats.totalDramas, color: 'bg-green-500' },
-                { label: 'Watching', value: stats.watching, total: stats.totalDramas, color: 'bg-blue-500' },
-                { label: 'Plan to Watch', value: stats.planToWatch, total: stats.totalDramas, color: 'bg-purple-500' },
+                { label: 'Completed', value: stats.completed, total: stats.totalDramas || 1, color: 'bg-green-500' },
+                { label: 'Watching', value: stats.watching, total: stats.totalDramas || 1, color: 'bg-blue-500' },
+                { label: 'Plan to Watch', value: stats.planToWatch, total: stats.totalDramas || 1, color: 'bg-purple-500' },
+                { label: 'On Hold', value: stats.onHold, total: stats.totalDramas || 1, color: 'bg-yellow-500' },
               ].map((item) => {
-                const percentage = (item.value / item.total) * 100
+                const percentage = stats.totalDramas > 0 ? (item.value / item.total) * 100 : 0
                 return (
                   <div key={item.label}>
                     <div className="flex justify-between mb-2">
@@ -168,18 +230,6 @@ const KDramaFeature = () => {
               Quick Actions
             </h3>
             <div className="space-y-3">
-              <button className="w-full glass-strong px-4 py-2 rounded-xl font-semibold hover:scale-105 transition-transform duration-300 text-left flex items-center justify-between">
-                <span>Add New K-Drama</span>
-                <span>+</span>
-              </button>
-              <button className="w-full glass-strong px-4 py-2 rounded-xl font-semibold hover:scale-105 transition-transform duration-300 text-left flex items-center justify-between">
-                <span>Upload from File</span>
-                <span>📤</span>
-              </button>
-              <button className="w-full glass-strong px-4 py-2 rounded-xl font-semibold hover:scale-105 transition-transform duration-300 text-left flex items-center justify-between">
-                <span>View Statistics</span>
-                <span>📊</span>
-              </button>
               <button 
                 onClick={() => navigate('/kdrama')}
                 className="w-full glass-strong px-4 py-2 rounded-xl font-semibold hover:scale-105 transition-transform duration-300 text-left flex items-center justify-between"

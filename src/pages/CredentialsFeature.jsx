@@ -1,18 +1,51 @@
 import { motion } from 'framer-motion'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { credentialAPI } from '../utils/api'
+import { useAuth } from '../context/AuthContext'
 
 const CredentialsFeature = () => {
   const navigate = useNavigate()
-  const [stats] = useState({
-    totalCredentials: 42,
-    development: 15,
-    entertainment: 8,
-    cloud: 6,
-    social: 7,
-    finance: 6,
-    secureScore: 95
-  })
+  const { isAuthenticated } = useAuth()
+  const [credentials, setCredentials] = useState([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      fetchCredentials()
+    }
+  }, [isAuthenticated])
+
+  const fetchCredentials = async () => {
+    try {
+      setLoading(true)
+      const response = await credentialAPI.getAll()
+      if (response.success) {
+        setCredentials(response.data)
+      }
+    } catch (err) {
+      console.error('Fetch error:', err)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Calculate stats from real data
+  const categoryCounts = credentials.reduce((acc, cred) => {
+    const category = cred.category || 'Other'
+    acc[category] = (acc[category] || 0) + 1
+    return acc
+  }, {})
+
+  const stats = {
+    totalCredentials: credentials.length,
+    development: categoryCounts['Development'] || categoryCounts['development'] || 0,
+    entertainment: categoryCounts['Entertainment'] || categoryCounts['entertainment'] || 0,
+    cloud: categoryCounts['Cloud'] || categoryCounts['cloud'] || categoryCounts['Cloud Services'] || 0,
+    social: categoryCounts['Social'] || categoryCounts['social'] || categoryCounts['Social Media'] || 0,
+    finance: categoryCounts['Finance'] || categoryCounts['finance'] || 0,
+    secureScore: credentials.length > 0 ? Math.min(100, Math.round((credentials.filter(c => c.password && c.password.length >= 8).length / credentials.length) * 100)) : 0
+  }
 
   const kpiCards = [
     {
@@ -58,6 +91,14 @@ const CredentialsFeature = () => {
       subtitle: 'Overall Security'
     }
   ]
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-slate-600 dark:text-slate-400">Loading statistics...</div>
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen relative overflow-hidden">
@@ -138,7 +179,7 @@ const CredentialsFeature = () => {
                 { label: 'Social', value: stats.social, total: stats.totalCredentials, color: 'bg-green-500' },
                 { label: 'Finance', value: stats.finance, total: stats.totalCredentials, color: 'bg-yellow-500' },
               ].map((item) => {
-                const percentage = (item.value / item.total) * 100
+                const percentage = stats.totalCredentials > 0 ? (item.value / item.total) * 100 : 0
                 return (
                   <div key={item.label}>
                     <div className="flex justify-between mb-2">
@@ -170,18 +211,6 @@ const CredentialsFeature = () => {
               Quick Actions
             </h3>
             <div className="space-y-3">
-              <button className="w-full glass-strong px-4 py-2 rounded-xl font-semibold hover:scale-105 transition-transform duration-300 text-left flex items-center justify-between">
-                <span>Add New Credential</span>
-                <span>+</span>
-              </button>
-              <button className="w-full glass-strong px-4 py-2 rounded-xl font-semibold hover:scale-105 transition-transform duration-300 text-left flex items-center justify-between">
-                <span>Upload from File</span>
-                <span>📤</span>
-              </button>
-              <button className="w-full glass-strong px-4 py-2 rounded-xl font-semibold hover:scale-105 transition-transform duration-300 text-left flex items-center justify-between">
-                <span>Security Audit</span>
-                <span>🔒</span>
-              </button>
               <button 
                 onClick={() => navigate('/credentials')}
                 className="w-full glass-strong px-4 py-2 rounded-xl font-semibold hover:scale-105 transition-transform duration-300 text-left flex items-center justify-between"

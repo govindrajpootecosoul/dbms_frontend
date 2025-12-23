@@ -1,10 +1,6 @@
+// Force using deployed backend in all environments
 const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL || 'https://dbms-backend-nu.vercel.app/api';
-
-// Debug: Log the API URL being used (remove in production)
-if (import.meta.env.DEV) {
-  console.log('🔗 API Base URL:', API_BASE_URL);
-}
+  'https://dbms-backend-gp3i8nx6s-govinds-projects-0e1f4b5e.vercel.app/api';
 
 // Get auth token from localStorage
 const getAuthToken = () => {

@@ -11,6 +11,8 @@ const GamesLibrary = () => {
   const [games, setGames] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [activeFilter, setActiveFilter] = useState('All')
+  const [showAddModal, setShowAddModal] = useState(false)
   const [showEditModal, setShowEditModal] = useState(false)
   const [editingGame, setEditingGame] = useState(null)
   const [newGame, setNewGame] = useState({
@@ -82,6 +84,31 @@ const GamesLibrary = () => {
     }
   }
 
+  const handleAddGame = async (e) => {
+    e.preventDefault()
+    if (!newGame.title) return
+    
+    try {
+      setError('')
+      await gameAPI.create(newGame)
+      
+      // Refresh the list
+      await fetchGames()
+      
+      setShowAddModal(false)
+      setNewGame({
+        title: '',
+        platform: 'PC',
+        status: 'Plan to Play',
+        rating: 0,
+        image: '🎮'
+      })
+    } catch (err) {
+      setError(err.message || 'Failed to add game')
+      console.error('Add game error:', err)
+    }
+  }
+
   const handleEditGame = (game) => {
     setEditingGame(game)
     setNewGame({
@@ -149,6 +176,11 @@ const GamesLibrary = () => {
     'Xbox': 'from-green-500 to-emerald-500',
   }
 
+  // Filter games based on active filter
+  const filteredGames = activeFilter === 'All' 
+    ? games 
+    : games.filter(game => game.status === activeFilter)
+
   if (loading && games.length === 0) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -170,7 +202,14 @@ const GamesLibrary = () => {
         className="mb-4 relative"
       >
         <div className="flex items-start justify-between">
-          <div>
+          <div className="flex-1">
+            <motion.button
+              onClick={() => navigate('/')}
+              className="mb-4 flex items-center gap-2 text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 transition-colors duration-300"
+            >
+              <span className="text-2xl">←</span>
+              <span className="font-semibold">Back</span>
+            </motion.button>
             <h1 className="text-base font-bold mb-4 text-gradient flex items-center gap-4">
               <span className="text-6xl">🎮</span>
               Games Library
@@ -191,6 +230,7 @@ const GamesLibrary = () => {
               initial={{ opacity: 0, scale: 0.8 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ delay: 0.3 }}
+              onClick={() => setShowAddModal(true)}
               className="bg-gradient-to-r from-green-500 to-emerald-500 text-white px-4 py-2 rounded-xl font-semibold hover:scale-105 transition-transform duration-300 shadow-lg hover:shadow-green-500/50 flex items-center gap-2"
             >
               <span className="text-base">+</span>
@@ -208,7 +248,12 @@ const GamesLibrary = () => {
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: index * 0.05 }}
-            className="glass-strong px-6 py-2 rounded-full whitespace-nowrap hover:scale-105 transition-transform duration-300"
+            onClick={() => setActiveFilter(filter)}
+            className={`px-6 py-2 rounded-full whitespace-nowrap hover:scale-105 transition-transform duration-300 font-semibold ${
+              activeFilter === filter
+                ? 'bg-gradient-to-r from-green-500 to-emerald-500 text-white shadow-lg'
+                : 'glass-strong'
+            }`}
           >
             {filter}
           </motion.button>
@@ -216,7 +261,8 @@ const GamesLibrary = () => {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        {games.map((game, index) => (
+        {filteredGames.length > 0 ? (
+          filteredGames.map((game, index) => (
           <motion.div
             key={game.id}
             initial={{ opacity: 0, scale: 0.9 }}
@@ -267,8 +313,111 @@ const GamesLibrary = () => {
               </div>
             </div>
           </motion.div>
-        ))}
+          ))
+        ) : (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="col-span-full glass-card text-center py-12"
+          >
+            <div className="text-6xl mb-4">📭</div>
+            <h3 className="text-lg font-bold mb-2 text-slate-800 dark:text-slate-200">
+              No games found
+            </h3>
+            <p className="text-slate-600 dark:text-slate-400">
+              {activeFilter === 'All' 
+                ? 'No games in your collection yet.' 
+                : `No games with status "${activeFilter}" yet.`}
+            </p>
+          </motion.div>
+        )}
       </div>
+
+      {/* Add Game Modal */}
+      {showAddModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setShowAddModal(false)} />
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95, y: 10 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            className="relative glass-card w-full max-w-2xl p-6 z-10"
+          >
+            <div className="flex items-start justify-between mb-4">
+              <div>
+                <h3 className="text-2xl font-bold text-slate-800 dark:text-slate-200">Add Game</h3>
+                <p className="text-sm text-slate-600 dark:text-slate-400">Fill the details and save.</p>
+              </div>
+              <button
+                onClick={() => setShowAddModal(false)}
+                className="text-slate-500 hover:text-slate-700 dark:text-slate-300 dark:hover:text-white"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleAddGame} className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <input
+                required
+                name="title"
+                value={newGame.title}
+                onChange={(e) => setNewGame({ ...newGame, title: e.target.value })}
+                placeholder="Game title*"
+                className="px-3 py-2 rounded-lg bg-white/70 dark:bg-black/20 border border-white/30 dark:border-white/10 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-green-400"
+              />
+              <select
+                value={newGame.platform}
+                onChange={(e) => setNewGame({ ...newGame, platform: e.target.value })}
+                className="px-3 py-2 rounded-lg bg-white/70 dark:bg-black/20 border border-white/30 dark:border-white/10 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-green-400"
+              >
+                {Object.keys(platformColors).map((p) => (
+                  <option key={p} value={p}>{p}</option>
+                ))}
+              </select>
+              <select
+                value={newGame.status}
+                onChange={(e) => setNewGame({ ...newGame, status: e.target.value })}
+                className="px-3 py-2 rounded-lg bg-white/70 dark:bg-black/20 border border-white/30 dark:border-white/10 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-green-400"
+              >
+                {Object.keys(statusColors).map((s) => (
+                  <option key={s} value={s}>{s}</option>
+                ))}
+              </select>
+              <input
+                name="rating"
+                type="number"
+                min="0"
+                max="10"
+                value={newGame.rating}
+                onChange={(e) => setNewGame({ ...newGame, rating: parseInt(e.target.value) || 0 })}
+                placeholder="Rating (0-10)"
+                className="px-3 py-2 rounded-lg bg-white/70 dark:bg-black/20 border border-white/30 dark:border-white/10 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-green-400"
+              />
+              <input
+                name="image"
+                value={newGame.image}
+                onChange={(e) => setNewGame({ ...newGame, image: e.target.value || '🎮' })}
+                placeholder="Image URL or Emoji"
+                className="px-3 py-2 rounded-lg bg-white/70 dark:bg-black/20 border border-white/30 dark:border-white/10 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-green-400 md:col-span-2"
+              />
+              <div className="md:col-span-2 flex justify-end gap-2 mt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowAddModal(false)}
+                  className="px-4 py-2 rounded-lg bg-white/20 dark:bg-black/20 text-slate-700 dark:text-slate-200 font-semibold hover:bg-white/30 dark:hover:bg-black/30 transition-all duration-300"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 rounded-lg bg-gradient-to-r from-green-500 to-emerald-500 text-white font-semibold hover:from-green-600 hover:to-emerald-600 transition-all duration-300 glow-on-hover"
+                >
+                  Add
+                </button>
+              </div>
+            </form>
+          </motion.div>
+        </div>
+      )}
 
       {/* Edit Game Modal */}
       {showEditModal && editingGame && (

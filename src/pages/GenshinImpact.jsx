@@ -18,7 +18,7 @@ const GenshinImpact = () => {
   const [error, setError] = useState('')
   const [newCharacter, setNewCharacter] = useState({
     name: '',
-    element: 'Cryo',
+    element: 'Cyro',
     tier: 'S',
     type: '',
     type2: '',
@@ -72,17 +72,19 @@ const GenshinImpact = () => {
     try {
       setError('')
       const newCharacters = data.map((item) => ({
-        name: item.name || item['Name'] || item.character || `Character`,
-        element: item.element || item['Element'] || 'Anemo',
-        rarity: parseInt(item.rarity || item['Rarity'] || item.stars || 4),
-        characterLevel: parseInt(item.characterLevel || item['Character Level'] || item['Level'] || 1),
+        name: item.Character || item.character || item.name || item['Name'] || `Character`,
+        element: item.Element || item.element || 'Anemo',
+        tier: item.Tier || item.tier || '',
+        type: item.Type || item.type || '',
+        type2: item['Type 2'] || item['Type2'] || item.type2 || '',
+        rarity: parseInt(item['Rarity Star'] || item.rarity || item['Rarity'] || item.stars || 4),
+        weapon: item.Weapon || item.weapon || '',
+        rating: item.Rating || item.rating || '',
+        levelType: item['Level Type'] || item['LevelType'] || item.levelType || '',
+        characterLevel: parseInt(item['Character Level'] || item['CharacterLevel'] || item.characterLevel || item['Level'] || 1),
+        characterOwned: item['Character Owned'] || item['CharacterOwned'] || item.characterOwned || item['Owned'] || 'Yes',
         constellation: parseInt(item.constellation || item['Constellation'] || item['C'] || 0),
         image: item.image || item['Image'] || '⚔️',
-        tier: item.tier || item['Tier'] || '',
-        type: item.type || item['Type'] || '',
-        weapon: item.weapon || item['Weapon'] || '',
-        type2: item.type2 || item['Type 2'] || item['Type2'] || '',
-        characterOwned: item.characterOwned || item['Character Owned'] || item['Owned'] || 'Yes',
         adventureRank: parseInt(item.adventureRank || item['Adventure Rank'] || item['AR'] || 1),
       }))
       
@@ -100,19 +102,30 @@ const GenshinImpact = () => {
   }
 
   const elementColors = {
-    'Electro': 'from-purple-500 to-pink-500',
-    'Geo': 'from-amber-500 to-yellow-500',
-    'Pyro': 'from-red-500 to-orange-500',
-    'Cryo': 'from-cyan-500 to-blue-500',
-    'Hydro': 'from-blue-500 to-cyan-500',
-    'Anemo': 'from-green-500 to-emerald-500',
-    'Dendro': 'from-green-600 to-lime-500',
+    'Electro': 'from-purple-200 to-pink-200',
+    'Geo': 'from-amber-200 to-yellow-200',
+    'Pyro': 'from-red-200 to-orange-200',
+    'Cyro': 'from-cyan-200 to-blue-200',
+    'Hydro': 'from-blue-200 to-cyan-200',
+    'Anemo': 'from-green-200 to-emerald-200',
+    'Dendro': 'from-green-200 to-lime-200',
   }
 
-  const tabs = ['All', 'Cryo', 'Electro', 'Pyro', 'Hydro', 'Dendro', 'Geo']
+  // Element images mapping - images are in public/elements/ folder
+  const elementImages = {
+    'Cyro': '/elements/Cryo 1.png',  // File is "Cryo 1.png" (note: 'r' in filename, 'y' in element name)
+    'Electro': '/elements/Electro 1.png',
+    'Pyro': '/elements/Pyro 1.png',
+    'Hydro': '/elements/Hydro 1.png',
+    'Dendro': '/elements/Dendro 1.png',
+    'Geo': '/elements/Geo 1.png',
+    'Anemo': '/elements/Anemo 1.png'
+  }
+
+  const tabs = ['All', 'Cyro', 'Electro', 'Pyro', 'Hydro', 'Dendro', 'Geo']
   const weaponOptions = ['Catalysts', 'Polearms', 'Claymores', 'Bows', 'Swords']
   const tierOptions = ['SS', 'S', 'A', 'B', 'C', 'D', 'E', 'F']
-  const elementOptions = ['Cryo', 'Electro', 'Pyro', 'Hydro', 'Dendro', 'Geo', 'Anemo']
+  const elementOptions = ['Cyro', 'Electro', 'Pyro', 'Hydro', 'Dendro', 'Geo', 'Anemo']
   const levelOptions = [10, 20, 40, 50, 60, 70, 80, 90]
   const constellationOptions = [0, 1, 2, 3, 4, 5, 6]
   const ownedOptions = ['Yes', 'No']
@@ -163,7 +176,7 @@ const GenshinImpact = () => {
       setShowAddModal(false)
       setNewCharacter({
         name: '',
-        element: 'Cryo',
+        element: 'Cyro',
         tier: 'S',
         type: '',
         type2: '',
@@ -235,7 +248,7 @@ const GenshinImpact = () => {
       setEditingCharacter(null)
       setNewCharacter({
         name: '',
-        element: 'Cryo',
+        element: 'Cyro',
         tier: 'S',
         type: '',
         type2: '',
@@ -288,7 +301,14 @@ const GenshinImpact = () => {
         className="mb-4 relative"
       >
         <div className="flex items-start justify-between">
-          <div>
+          <div className="flex-1">
+            <motion.button
+              onClick={() => navigate('/')}
+              className="mb-4 flex items-center gap-2 text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 transition-colors duration-300"
+            >
+              <span className="text-2xl">←</span>
+              <span className="font-semibold">Back</span>
+            </motion.button>
             <h1 className="text-base font-bold mb-4 text-gradient flex items-center gap-4">
               <span className="text-6xl">⚔️</span>
               Genshin Impact
@@ -319,9 +339,10 @@ const GenshinImpact = () => {
               initial={{ opacity: 0, scale: 0.8 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ delay: 0.4 }}
+              onClick={() => navigate('/genshin/feature')}
               className="glass-strong px-4 py-2 rounded-xl font-semibold hover:scale-105 transition-transform duration-300"
             >
-              View Builds
+              View Stats
             </motion.button>
           </div>
         </div>
@@ -381,14 +402,14 @@ const GenshinImpact = () => {
       <div className="mb-3">
         <h2 className="text-base font-bold mb-4 text-slate-800 dark:text-slate-200">My Characters</h2>
         {searchedCharacters.length > 0 ? (
-          <div className={isList ? 'flex flex-col gap-2' : 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4'}>
+          <div className={isList ? 'flex flex-col gap-3' : 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4'}>
             {searchedCharacters.map((char, index) => (
             <motion.div
               key={char.id}
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ delay: index * 0.1 }}
-              className={`glass-card group transition-transform duration-300 relative ${isList ? 'p-3 flex gap-3 items-start' : 'hover:scale-105'}`}
+              className={`glass-card group transition-transform duration-300 relative ${isList ? 'p-4 flex gap-4 items-center shadow-lg hover:shadow-xl border border-slate-200/50 dark:border-slate-700/50' : 'hover:scale-105'}`}
             >
               {/* Edit and Delete Icons */}
               <div className="absolute top-2 right-2 flex gap-2 z-10">
@@ -407,59 +428,90 @@ const GenshinImpact = () => {
                   🗑️
                 </button>
               </div>
-              <div className={`${isList ? 'flex-shrink-0 text-4xl leading-none' : `w-full h-32 rounded-xl bg-gradient-to-br ${elementColors[char.element]} flex items-center justify-center mb-4 overflow-hidden`}`}>
+              <div className={`${isList ? 'flex-shrink-0 w-20 h-20 rounded-xl bg-gradient-to-br ${elementColors[char.element]} flex items-center justify-center shadow-md' : `w-full h-32 rounded-xl bg-gradient-to-br ${elementColors[char.element]} flex items-center justify-center mb-4 overflow-hidden relative`}`}>
                 {isImageUrl(char.image) ? (
-                  <img 
-                    src={char.image} 
-                    alt={char.name}
-                    className={isList ? 'w-16 h-16 object-cover rounded' : 'w-full h-full object-cover'}
-                    onError={(e) => {
-                      e.target.style.display = 'none'
-                      const fallback = e.target.parentElement.querySelector('.emoji-fallback')
-                      if (fallback) fallback.style.display = 'block'
-                    }}
-                  />
+                  <>
+                    <img 
+                      src={char.image} 
+                      alt={char.name}
+                      className={isList ? 'w-16 h-16 object-cover rounded' : 'w-full h-full object-cover'}
+                      onError={(e) => {
+                        e.target.style.display = 'none'
+                        const fallback = e.target.parentElement.querySelector('.emoji-fallback')
+                        if (fallback) fallback.style.display = 'block'
+                      }}
+                    />
+                    <span className={`emoji-fallback hidden ${isList ? 'text-4xl' : 'text-6xl'}`}>{'⚔️'}</span>
+                  </>
                 ) : (
-                  <span className={isList ? 'text-4xl' : 'text-6xl'}>{char.image || '⚔️'}</span>
-                )}
-                {isImageUrl(char.image) && (
-                  <span className={`emoji-fallback hidden ${isList ? 'text-4xl' : 'text-6xl'}`}>{'⚔️'}</span>
+                  <>
+                    {/* Show element image if available, otherwise show emoji */}
+                    {char.element && elementImages[char.element] ? (
+                      <>
+                        <img 
+                          src={elementImages[char.element]} 
+                          alt={char.element}
+                          className={isList ? 'w-full h-full object-contain p-2' : 'w-full h-full object-contain p-4'}
+                          onError={(e) => {
+                            e.target.style.display = 'none'
+                            const fallback = e.target.parentElement.querySelector('.element-emoji-fallback')
+                            if (fallback) fallback.style.display = 'block'
+                          }}
+                        />
+                        <span className={`element-emoji-fallback hidden ${isList ? 'text-4xl' : 'text-6xl'}`}>{char.image || '⚔️'}</span>
+                      </>
+                    ) : (
+                      <span className={isList ? 'text-4xl' : 'text-6xl'}>{char.image || '⚔️'}</span>
+                    )}
+                  </>
                 )}
               </div>
               <div className={`${isList ? 'flex-1 min-w-0' : ''}`}>
-                <h3 className={`text-base font-bold text-slate-800 dark:text-slate-200 ${isList ? 'mb-1' : 'mb-2'}`}>
+                <h3 className={`text-base font-bold text-slate-800 dark:text-slate-200 ${isList ? 'mb-2' : 'mb-2'}`}>
                   {char.name}
                 </h3>
-                <div className={`${isList ? 'grid grid-cols-2 gap-1 text-xs' : 'space-y-2 text-sm'}`}>
-                  <div className="flex justify-between items-center">
+                <div className={`${isList ? 'grid grid-cols-2 gap-x-8 gap-y-1.5 text-sm' : 'space-y-2 text-sm'}`}>
+                  <div className={`flex justify-between items-center ${isList ? '' : ''}`}>
                     <span className="text-slate-600 dark:text-slate-400">Tier</span>
                     <span className="font-semibold">{char.tier || '-'}</span>
                   </div>
-                  <div className="flex justify-between items-center">
+                  <div className={`flex justify-between items-center ${isList ? '' : ''}`}>
                     <span className="text-slate-600 dark:text-slate-400">Element</span>
                     <span className="font-semibold">{char.element}</span>
                   </div>
-                  <div className="flex justify-between items-center">
+                  <div className={`flex justify-between items-center ${isList ? '' : ''}`}>
                     <span className="text-slate-600 dark:text-slate-400">Type</span>
                     <span className="font-semibold">{char.type || '-'}</span>
                   </div>
-                  <div className="flex justify-between items-center">
+                  <div className={`flex justify-between items-center ${isList ? '' : ''}`}>
                     <span className="text-slate-600 dark:text-slate-400">Type 2</span>
                     <span className="font-semibold">{char.type2 || '-'}</span>
                   </div>
-                  <div className="flex justify-between items-center">
+                  <div className={`flex justify-between items-center ${isList ? '' : ''}`}>
                     <span className="text-slate-600 dark:text-slate-400">Weapon</span>
                     <span className="font-semibold">{char.weapon || '-'}</span>
                   </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-slate-600 dark:text-slate-400">Rarity</span>
+                  <div className={`flex justify-between items-center ${isList ? '' : ''}`}>
+                    <span className="text-slate-600 dark:text-slate-400">Rarity Star</span>
                     <div className="flex gap-1">
                       {[...Array(char.rarity)].map((_, i) => (
                         <span key={i} className="text-yellow-400">⭐</span>
                       ))}
                     </div>
                   </div>
-                  <div className="flex justify-between items-center gap-2">
+                  {char.rating && (
+                    <div className={`flex justify-between items-center ${isList ? '' : ''}`}>
+                      <span className="text-slate-600 dark:text-slate-400">Rating</span>
+                      <span className="font-semibold">{char.rating}</span>
+                    </div>
+                  )}
+                  {char.levelType && (
+                    <div className={`flex justify-between items-center ${isList ? '' : ''}`}>
+                      <span className="text-slate-600 dark:text-slate-400">Level Type</span>
+                      <span className="font-semibold">{char.levelType}</span>
+                    </div>
+                  )}
+                  <div className={`flex justify-between items-center gap-2 ${isList ? '' : ''}`}>
                     <span className="text-slate-600 dark:text-slate-400">Constellation</span>
                     <select
                       value={char.constellation ?? 0}
@@ -471,7 +523,7 @@ const GenshinImpact = () => {
                       ))}
                     </select>
                   </div>
-                  <div className="flex justify-between items-center gap-2">
+                  <div className={`flex justify-between items-center gap-2 ${isList ? '' : ''}`}>
                     <span className="text-slate-600 dark:text-slate-400">Character Level</span>
                     <select
                       value={char.characterLevel ?? char.level ?? 1}
@@ -483,7 +535,7 @@ const GenshinImpact = () => {
                       ))}
                     </select>
                   </div>
-                  <div className="flex justify-between items-center gap-2">
+                  <div className={`flex justify-between items-center gap-2 ${isList ? '' : ''}`}>
                     <span className="text-slate-600 dark:text-slate-400">Character Owned</span>
                     <select
                       value={char.characterOwned || 'No'}

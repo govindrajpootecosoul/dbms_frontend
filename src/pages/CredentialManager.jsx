@@ -12,6 +12,7 @@ const CredentialManager = () => {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [showPassword, setShowPassword] = useState({})
+  const [showAddModal, setShowAddModal] = useState(false)
   const [showEditModal, setShowEditModal] = useState(false)
   const [editingCred, setEditingCred] = useState(null)
   const [newCred, setNewCred] = useState({
@@ -85,6 +86,30 @@ const CredentialManager = () => {
       console.error('Upload error:', err)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleAddCred = async (e) => {
+    e.preventDefault()
+    if (!newCred.service) return
+    
+    try {
+      setError('')
+      await credentialAPI.create(newCred)
+      
+      // Refresh the list
+      await fetchCredentials()
+      
+      setShowAddModal(false)
+      setNewCred({
+        service: '',
+        username: '',
+        password: '',
+        category: 'Other'
+      })
+    } catch (err) {
+      setError(err.message || 'Failed to add credential')
+      console.error('Add credential error:', err)
     }
   }
 
@@ -173,13 +198,20 @@ const CredentialManager = () => {
         className="mb-4 relative"
       >
         <div className="flex items-start justify-between">
-          <div>
+          <div className="flex-1">
+            <motion.button
+              onClick={() => navigate('/')}
+              className="mb-4 flex items-center gap-2 text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 transition-colors duration-300"
+            >
+              <span className="text-2xl">←</span>
+              <span className="font-semibold">Back</span>
+            </motion.button>
             <h1 className="text-base font-bold mb-4 text-gradient flex items-center gap-4">
               <span className="text-6xl">🔐</span>
               Credential Manager
             </h1>
             <p className="text-base text-slate-600 dark:text-slate-300">
-              Secure credential storage (UI-only, masked values)
+              Secure credential storage
             </p>
           </div>
           <div className="flex gap-3">
@@ -194,31 +226,12 @@ const CredentialManager = () => {
               initial={{ opacity: 0, scale: 0.8 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ delay: 0.3 }}
+              onClick={() => setShowAddModal(true)}
               className="bg-gradient-to-r from-indigo-500 to-blue-500 text-white px-4 py-2 rounded-xl font-semibold hover:scale-105 transition-transform duration-300 shadow-lg hover:shadow-indigo-500/50 flex items-center gap-2"
             >
               <span className="text-base">+</span>
               <span>Add New Credential</span>
             </motion.button>
-          </div>
-        </div>
-      </motion.div>
-
-      {/* Security Notice */}
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ delay: 0.2 }}
-        className="glass-card mb-4 border-yellow-500/50 bg-yellow-500/10"
-      >
-        <div className="flex items-start gap-4">
-          <span className="text-base">⚠️</span>
-          <div>
-            <h3 className="text-lg font-bold mb-2 text-slate-800 dark:text-slate-200">
-              UI-Only Implementation
-            </h3>
-            <p className="text-slate-600 dark:text-slate-400">
-              This is a visual demonstration only. All passwords are masked and no actual credentials are stored or transmitted.
-            </p>
           </div>
         </div>
       </motion.div>
@@ -301,6 +314,84 @@ const CredentialManager = () => {
           </motion.div>
         ))}
       </div>
+
+      {/* Add Credential Modal */}
+      {showAddModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setShowAddModal(false)} />
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95, y: 10 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            className="relative glass-card w-full max-w-2xl p-6 z-10"
+          >
+            <div className="flex items-start justify-between mb-4">
+              <div>
+                <h3 className="text-2xl font-bold text-slate-800 dark:text-slate-200">Add Credential</h3>
+                <p className="text-sm text-slate-600 dark:text-slate-400">Fill the details and save.</p>
+              </div>
+              <button
+                onClick={() => setShowAddModal(false)}
+                className="text-slate-500 hover:text-slate-700 dark:text-slate-300 dark:hover:text-white"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleAddCred} className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <input
+                required
+                name="service"
+                value={newCred.service}
+                onChange={(e) => setNewCred({ ...newCred, service: e.target.value })}
+                placeholder="Service name*"
+                className="px-3 py-2 rounded-lg bg-white/70 dark:bg-black/20 border border-white/30 dark:border-white/10 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-400"
+              />
+              <select
+                value={newCred.category}
+                onChange={(e) => setNewCred({ ...newCred, category: e.target.value })}
+                className="px-3 py-2 rounded-lg bg-white/70 dark:bg-black/20 border border-white/30 dark:border-white/10 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-400"
+              >
+                {Object.keys(categoryColors).map((cat) => (
+                  <option key={cat} value={cat}>{cat}</option>
+                ))}
+                <option value="Other">Other</option>
+              </select>
+              <input
+                required
+                name="username"
+                value={newCred.username}
+                onChange={(e) => setNewCred({ ...newCred, username: e.target.value })}
+                placeholder="Username/Email*"
+                className="px-3 py-2 rounded-lg bg-white/70 dark:bg-black/20 border border-white/30 dark:border-white/10 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-400"
+              />
+              <input
+                required
+                name="password"
+                type="password"
+                value={newCred.password}
+                onChange={(e) => setNewCred({ ...newCred, password: e.target.value })}
+                placeholder="Password*"
+                className="px-3 py-2 rounded-lg bg-white/70 dark:bg-black/20 border border-white/30 dark:border-white/10 text-slate-800 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-400"
+              />
+              <div className="md:col-span-2 flex justify-end gap-2 mt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowAddModal(false)}
+                  className="px-4 py-2 rounded-lg bg-white/20 dark:bg-black/20 text-slate-700 dark:text-slate-200 font-semibold hover:bg-white/30 dark:hover:bg-black/30 transition-all duration-300"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 rounded-lg bg-gradient-to-r from-indigo-500 to-blue-500 text-white font-semibold hover:from-indigo-600 hover:to-blue-600 transition-all duration-300 glow-on-hover"
+                >
+                  Add
+                </button>
+              </div>
+            </form>
+          </motion.div>
+        </div>
+      )}
 
       {/* Edit Credential Modal */}
       {showEditModal && editingCred && (

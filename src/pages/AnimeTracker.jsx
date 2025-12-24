@@ -361,7 +361,14 @@ const AnimeTracker = () => {
         className="mb-4 relative"
       >
         <div className="flex items-start justify-between">
-          <div>
+          <div className="flex-1">
+            <motion.button
+              onClick={() => navigate('/')}
+              className="mb-4 flex items-center gap-2 text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 transition-colors duration-300"
+            >
+              <span className="text-2xl">←</span>
+              <span className="font-semibold">Back</span>
+            </motion.button>
             <h1 className="text-base font-bold mb-4 text-gradient flex items-center gap-4">
               <span className="text-6xl">🎌</span>
               Anime Tracker
